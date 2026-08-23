@@ -1,0 +1,39 @@
+@PACKAGE_INIT@
+
+# motus's public headers pull Threads always, and Boost.Asio + AMQP-CPP when
+# the AMQP-CPP backend was compiled in. The installed target records which
+# backends this build contains; resolve the matching dependencies here so a
+# consumer's find_package(motus) is the whole configuration story.
+
+include(CMakeFindDependencyMacro)
+
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_dependency(Threads)
+
+set(MOTUS_WITH_AMQPCPP    @MOTUS_WITH_AMQPCPP@)
+set(MOTUS_WITH_INMEMORY   @MOTUS_WITH_INMEMORY@)
+set(MOTUS_WITH_SIMPLEAMQP @MOTUS_WITH_SIMPLEAMQP@)
+
+if(MOTUS_WITH_AMQPCPP)
+    find_dependency(Boost CONFIG OPTIONAL_COMPONENTS system)
+
+    # Same two-path location as the build itself: package config first, then a
+    # synthesised imported target -- see the top-level CMakeLists for why.
+    find_package(amqpcpp QUIET)
+    if(NOT TARGET amqpcpp)
+        find_path(MOTUS_AMQPCPP_INCLUDE_DIR NAMES amqpcpp.h)
+        find_library(MOTUS_AMQPCPP_LIBRARY NAMES amqpcpp)
+        if(NOT MOTUS_AMQPCPP_INCLUDE_DIR OR NOT MOTUS_AMQPCPP_LIBRARY)
+            set(motus_FOUND FALSE)
+            set(motus_NOT_FOUND_MESSAGE
+                "motus was built with the AMQP-CPP backend, but AMQP-CPP could not be located")
+            return()
+        endif()
+        add_library(amqpcpp UNKNOWN IMPORTED)
+        set_target_properties(amqpcpp PROPERTIES
+            IMPORTED_LOCATION             "${MOTUS_AMQPCPP_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${MOTUS_AMQPCPP_INCLUDE_DIR}")
+    endif()
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/motusTargets.cmake")
