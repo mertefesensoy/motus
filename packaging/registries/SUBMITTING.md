@@ -1,8 +1,9 @@
 # Submitting motus to the package registries
 
-Both submissions are pull requests against third-party repositories, filed from your own
-GitHub account. Everything here is staged; the steps below are the only parts that must be
-done by hand.
+**Status: both v1.0.0 submissions are FILED (2026-08-24)** —
+[microsoft/vcpkg#53562](https://github.com/microsoft/vcpkg/pull/53562) and
+[conan-io/conan-center-index#30838](https://github.com/conan-io/conan-center-index/pull/30838).
+The steps below remain as the playbook for future version bumps.
 
 ## vcpkg (microsoft/vcpkg)
 
