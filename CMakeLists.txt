@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(motus
-    VERSION 0.1.0
+    VERSION 1.0.0
     DESCRIPTION "A transport-agnostic messaging seam for C++17, with a per-backend conformance suite and a Windows-safe AMQP-CPP backend"
     LANGUAGES CXX)
 

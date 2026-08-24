@@ -1,5 +1,9 @@
 # motus
 
+[![CI](https://github.com/mertefesensoy/motus/actions/workflows/ci.yml/badge.svg)](https://github.com/mertefesensoy/motus/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/mertefesensoy/motus)](https://github.com/mertefesensoy/motus/releases)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
 **AMQP-CPP's bundled event-loop integrations do not compile on Windows.**
 `<amqpcpp/libboostasio.h>` is written against `boost::asio::posix::stream_descriptor` with no
 platform guards, MSYS2 ships the header anyway, and the build dies deep inside Boost templates
@@ -72,6 +76,11 @@ Consuming it is one line of CMake after `cmake --install`:
 find_package(motus REQUIRED)
 target_link_libraries(your_app PRIVATE motus::motus)
 ```
+
+Or pin a commit with FetchContent — how [aftershock](https://github.com/mertefesensoy/aftershock),
+the system this library was extracted from, consumes it. A vcpkg port and a Conan recipe are
+staged under [`packaging/registries/`](packaging/registries/) (usable today as a vcpkg
+overlay port) pending registry submission.
 
 ### Options
 
