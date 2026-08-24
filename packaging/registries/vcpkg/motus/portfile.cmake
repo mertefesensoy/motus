@@ -7,7 +7,7 @@ vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO mertefesensoy/motus
     REF "v${VERSION}"
-    SHA512 FILL-ME-AFTER-TAGGING
+    SHA512 f4703a29a0bed2b94f8fce46a293be998500c393d4e2ba0d02f0211699a87e83cde003e43011ac941ec0e9d879f1c3cb39616887da64b9e6bbe1c0c2e889f073
     HEAD_REF main
 )
 

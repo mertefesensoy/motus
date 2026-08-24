@@ -6,14 +6,12 @@ done by hand.
 
 ## vcpkg (microsoft/vcpkg)
 
-1. **Compute the release SHA512** (once v1.0.0 is tagged):
+1. The port already carries the real v1.0.0 SHA512. For any future version, recompute:
 
    ```console
-   curl -sL https://github.com/mertefesensoy/motus/archive/refs/tags/v1.0.0.tar.gz -o motus-1.0.0.tar.gz
-   vcpkg hash motus-1.0.0.tar.gz
+   curl -sL https://github.com/mertefesensoy/motus/archive/refs/tags/vX.Y.Z.tar.gz -o motus.tar.gz
+   vcpkg hash motus.tar.gz
    ```
-
-   Paste the result over `FILL-ME-AFTER-TAGGING` in `vcpkg/motus/portfile.cmake`.
 
 2. **Test the port locally** before filing (this is the exact check vcpkg CI runs first):
 
@@ -32,23 +30,11 @@ done by hand.
 
 ## Conan (conan-io/conan-center-index)
 
-1. Fork conan-io/conan-center-index; create `recipes/motus/all/` containing
-   `conanfile.py` (from `conan/conanfile.py` here) and a `conandata.yml`:
+1. Fork conan-io/conan-center-index, then copy the files staged here:
 
-   ```yaml
-   sources:
-     "1.0.0":
-       url: "https://github.com/mertefesensoy/motus/archive/refs/tags/v1.0.0.tar.gz"
-       sha256: "<sha256 of the same tarball>"
-   ```
-
-   and `recipes/motus/config.yml`:
-
-   ```yaml
-   versions:
-     "1.0.0":
-       folder: all
-   ```
+   - `conan/conanfile.py`  -> `recipes/motus/all/conanfile.py`
+   - `conan/conandata.yml` -> `recipes/motus/all/conandata.yml`  (real v1.0.0 sha256)
+   - `conan/config.yml`    -> `recipes/motus/config.yml`
 
 2. **Test locally**: `conan create recipes/motus/all --version 1.0.0`.
 
