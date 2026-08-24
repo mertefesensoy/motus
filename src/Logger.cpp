@@ -282,7 +282,7 @@ std::string hexDump(const char *data, std::size_t size, std::size_t maxBytes)
     if (data == nullptr || size == 0) return "(empty)";
 
     const std::size_t shown   = std::min(size, maxBytes);
-    constexpr std::size_t kPerLine = 16;
+    static constexpr std::size_t kPerLine = 16;
 
     std::ostringstream out;
     out << std::hex << std::setfill('0');

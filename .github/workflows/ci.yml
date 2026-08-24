@@ -1,0 +1,154 @@
+# motus CI.
+#
+# Every job runs the unit suite and the in-memory conformance leg — the portable half of
+# the contract, checkable with no middleware anywhere. The Linux integration job then runs
+# the SAME 39 scenarios against a real RabbitMQ, with the skip-guards forced so an
+# environment gap fails instead of silently passing (ctest renders a skip as "Passed").
+#
+# AMQP-CPP is pinned to 4.3.27 everywhere it appears: that is the version motus is
+# developed against, and a newer one in CI would mean CI is not testing what ships.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  GUARDS: MOTUS_REQUIRE_CAPS=1
+
+jobs:
+  unit-linux:
+    name: unit (ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-linux-deps
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_PREFIX_PATH="$HOME/amqpcpp-install"
+        env:
+          CMAKE_PREFIX_PATH: ~/amqpcpp-install
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test (no broker)
+        run: MOTUS_REQUIRE_CAPS=1 ctest --test-dir build -L unit --output-on-failure
+
+  integration-linux:
+    name: integration (ubuntu + rabbitmq)
+    runs-on: ubuntu-latest
+    services:
+      rabbitmq:
+        image: rabbitmq:4-management
+        ports:
+          - 5672:5672
+          - 15672:15672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-linux-deps
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_PREFIX_PATH="$HOME/amqpcpp-install"
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Full contract (live broker)
+        run: >-
+          MOTUS_REQUIRE_BROKER=1 MOTUS_REQUIRE_CAPS=1
+          ctest --test-dir build --output-on-failure
+
+  unit-msvc:
+    name: unit (windows, msvc)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cache vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: build/vcpkg_installed
+          key: vcpkg-msvc-${{ hashFiles('vcpkg.json') }}-v1
+      - name: Configure
+        run: >-
+          cmake -S . -B build
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake"
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Test (no broker)
+        run: ctest --test-dir build -C Release -L unit --output-on-failure
+        env:
+          MOTUS_REQUIRE_CAPS: 1
+      - name: In-memory conformance
+        run: ctest --test-dir build -C Release -R "^conformance.inmemory$" --output-on-failure
+        env:
+          MOTUS_REQUIRE_CAPS: 1
+
+  unit-msys2:
+    name: unit (windows, msys2 ucrt64)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-boost
+            mingw-w64-ucrt-x86_64-amqp-cpp
+            mingw-w64-ucrt-x86_64-gtest
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test (no broker)
+        run: MOTUS_REQUIRE_CAPS=1 ctest --test-dir build -L unit --output-on-failure
+      - name: In-memory conformance
+        run: MOTUS_REQUIRE_CAPS=1 ctest --test-dir build -R "^conformance.inmemory$" --output-on-failure
+
+  unit-macos:
+    name: unit (macos arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Homebrew dependencies
+        run: brew install boost googletest ninja
+      # Homebrew's amqp-cpp tracks upstream; motus pins 4.3.27, so build it from source
+      # here exactly as the Linux jobs do.
+      - name: Cache AMQP-CPP
+        id: cache-amqpcpp
+        uses: actions/cache@v4
+        with:
+          path: ~/amqpcpp-install
+          key: amqpcpp-4.3.27-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Build AMQP-CPP
+        if: steps.cache-amqpcpp.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch v4.3.27 \
+            https://github.com/CopernicaMarketingSoftware/AMQP-CPP.git /tmp/amqpcpp-src
+          cmake -S /tmp/amqpcpp-src -B /tmp/amqpcpp-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DAMQP-CPP_LINUX_TCP=OFF \
+            -DCMAKE_INSTALL_PREFIX="$HOME/amqpcpp-install" \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build /tmp/amqpcpp-build --parallel
+          cmake --install /tmp/amqpcpp-build
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_PREFIX_PATH="$HOME/amqpcpp-install"
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test (no broker)
+        run: MOTUS_REQUIRE_CAPS=1 ctest --test-dir build -L unit --output-on-failure
+      - name: In-memory conformance
+        run: MOTUS_REQUIRE_CAPS=1 ctest --test-dir build -R "^conformance.inmemory$" --output-on-failure

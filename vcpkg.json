@@ -1,0 +1,19 @@
+{
+  "$comment": [
+    "Dependency manifest for the MSVC CI leg. Inert unless CMake is invoked with vcpkg's",
+    "toolchain file; the MSYS2/Linux/macOS builds take their dependencies from the system",
+    "package manager and are unaffected by this file's presence.",
+    "",
+    "amqpcpp: vcpkg carries 4.3.27, the exact version motus is developed against."
+  ],
+  "name": "motus",
+  "version": "1.0.0",
+  "description": "Transport-agnostic messaging seam for C++17 with a per-backend conformance suite and a Windows-safe AMQP-CPP connection handler",
+  "license": "Apache-2.0",
+  "dependencies": [
+    "amqpcpp",
+    "boost-asio",
+    "boost-system",
+    "gtest"
+  ]
+}

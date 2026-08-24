@@ -830,7 +830,7 @@ TEST_P(DeliveryConformanceTest, AForensicDestinationPreservesItsFirstMessagesAnd
     MOTUS_REQUIRE_CAPABILITY_OR_SKIP(deadLetter);
     MOTUS_REQUIRE_CAPABILITY_OR_SKIP(boundedQueue);
 
-    constexpr std::uint32_t kExpectedForensicLimit =
+    static constexpr std::uint32_t kExpectedForensicLimit =
         motus::transport::kForensicMaxLength;
     const std::string marker = uniqueMarker("forensic-bound");
     const std::string source = "motus.conformance.forensic-bound." + marker;

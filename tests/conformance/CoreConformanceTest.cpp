@@ -258,7 +258,7 @@ TEST_P(ConformanceTest, MessageOrderIsPreservedForASingleConsumer)
     MOTUS_REQUIRE_CAPABILITY_OR_SKIP(fifoPerTopic);
 
     const std::string marker = uniqueMarker("order");
-    constexpr std::size_t kCount = 10;
+    static constexpr std::size_t kCount = 10;
 
     {
         motus::Producer producer(transport(), producerOptions());
@@ -339,7 +339,7 @@ TEST_P(ConformanceTest, EachMessageReachesExactlyOneOfTwoCompetingConsumersAndBo
     MOTUS_REQUIRE_CAPABILITY_OR_SKIP(competingConsumers);
 
     const std::string marker = uniqueMarker("compete");
-    constexpr std::size_t kCount = 12;
+    static constexpr std::size_t kCount = 12;
 
     {
         motus::Producer producer(transport(), producerOptions());
@@ -452,7 +452,7 @@ TEST_P(ConformanceTest, OneTransportRefusesASecondActiveSubscription)
 TEST_P(ConformanceTest, ConsumerCountersAgreeWithWhatTheTransportPerformed)
 {
     const std::string marker = uniqueMarker("counters");
-    constexpr std::size_t kGood = 4;
+    static constexpr std::size_t kGood = 4;
 
     {
         motus::Producer producer(transport(), producerOptions());

@@ -148,7 +148,7 @@ TEST_P(ScaleConformanceTest, ArbitraryBinaryBytesSurviveTheRoundTrip)
  */
 TEST_P(ScaleConformanceTest, AVeryLargeSinglePayloadSurvivesTheRoundTrip)
 {
-    constexpr std::size_t kContentBytes = 1024u * 1024u;
+    static constexpr std::size_t kContentBytes = 1024u * 1024u;
 
     const motus::ByteMessage message =
         markedMessage(uniqueMarker("longfile"), std::string(kContentBytes, 'A'));
@@ -285,8 +285,8 @@ TEST_P(ScaleConformanceTest, PayloadOverTheFourMebibyteBoundIsRefusedBeforeReach
  */
 TEST_P(ScaleConformanceTest, LargeGeneratedPayloadRoundTripsLineForLine)
 {
-    constexpr std::uint32_t kRows    = 3000;
-    constexpr std::uint16_t kColumns = 7;
+    static constexpr std::uint32_t kRows    = 3000;
+    static constexpr std::uint16_t kColumns = 7;
 
     std::vector<std::string> lines;
     lines.reserve(kRows);

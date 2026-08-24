@@ -335,7 +335,7 @@ TEST(ForensicPressure, ClassifiesDepthAgainstTheCapThatActuallyShips)
 {
     using motus::transport::forensicPressure;
     using motus::transport::ForensicPressure;
-    constexpr std::uint32_t kCap = motus::transport::kForensicMaxLength;
+    static constexpr std::uint32_t kCap = motus::transport::kForensicMaxLength;
 
     // The shipped cap, asserted rather than assumed: the boundaries below are only meaningful
     // relative to it, and a silent change to it would move them without failing anything.

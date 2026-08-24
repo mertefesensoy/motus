@@ -1,0 +1,42 @@
+name: Set up motus Linux dependencies
+description: >-
+  Installs motus's build dependencies on Ubuntu and builds AMQP-CPP from source,
+  because no Ubuntu release before 26.04 packages it.
+
+runs:
+  using: composite
+  steps:
+    - name: APT dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          build-essential cmake ninja-build \
+          libboost-dev libboost-system-dev \
+          libgtest-dev libgmock-dev
+
+    # AMQP-CPP is not in the Ubuntu archive until 26.04, so it is built here.
+    # Pinned to 4.3.27: the version motus is developed and verified against.
+    - name: Cache AMQP-CPP
+      id: cache-amqpcpp
+      uses: actions/cache@v4
+      with:
+        path: ~/amqpcpp-install
+        key: amqpcpp-4.3.27-${{ runner.os }}-${{ runner.arch }}-v1
+
+    - name: Build AMQP-CPP
+      if: steps.cache-amqpcpp.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        git clone --depth 1 --branch v4.3.27 \
+          https://github.com/CopernicaMarketingSoftware/AMQP-CPP.git /tmp/amqpcpp-src
+        # LINUX_TCP stays OFF: motus::AmqpConnection is its own ConnectionHandler over
+        # Boost.Asio -- AMQP-CPP's bundled TCP layer is exactly the part motus replaces.
+        cmake -S /tmp/amqpcpp-src -B /tmp/amqpcpp-build -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DAMQP-CPP_LINUX_TCP=OFF \
+          -DCMAKE_INSTALL_PREFIX="$HOME/amqpcpp-install" \
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        cmake --build /tmp/amqpcpp-build --parallel
+        cmake --install /tmp/amqpcpp-build
