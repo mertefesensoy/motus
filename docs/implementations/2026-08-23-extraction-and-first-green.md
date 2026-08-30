@@ -1,7 +1,7 @@
 # Extraction from the predecessor project, and the first green run
 
 **Date:** 2026-08-23
-**Author:** Claude Code, at the author's direction
+**Author:** MERT EFE ŞENSOY
 **Status:** implemented
 
 ---
