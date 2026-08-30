@@ -77,9 +77,11 @@ Three are correctness, one is policy.
 **`transitive_headers=True` on `amqp-cpp` and `boost`.** `include/motus/AmqpConnection.hpp` is
 an *installed* public header, and it includes `<amqpcpp.h>` (line 20) and five
 `<boost/asio/*.hpp>` headers (lines 14-18); `AmqpCppTransport.hpp` includes `<amqpcpp.h>` too.
-Without the flag Conan treats those dependencies as private to the build, and any consumer
-that includes `AmqpConnection.hpp` fails to compile. This was a genuine defect, not a style
-point.
+Conan's rule is that a package whose *public* headers include a dependency's headers must
+mark that requirement `transitive_headers=True`, otherwise the dependency's include paths are
+not propagated and a consumer that includes `AmqpConnection.hpp` cannot compile. This was a
+genuine defect, not a style point. See section 6 for what could and could not be demonstrated
+locally.
 
 **`mswsock` and the compile definitions on Windows.** Upstream `CMakeLists.txt` puts
 `ws2_32 mswsock` and `_WIN32_WINNT=0x0601` / `WIN32_LEAN_AND_MEAN` on the `motus` target as
@@ -187,16 +189,54 @@ with exit code 0.
 
 Recipe syntax was checked with `python -c "import ast; ast.parse(...)"` on both conanfiles.
 
+### 6.1 Under real Conan
+
+Conan 2.31.2 was later installed (`pip install conan`) and the recipe was run for real, against
+a gcc 16 profile driving the MSYS2 UCRT64 toolchain. Note that the recipe and the Conan home
+must live under a short path such as `C:\mtc`; from the usual scratch directory the build dies
+on `CMAKE_OBJECT_PATH_MAX` before it compiles anything.
+
+Established:
+
+1. `conan create` with `-o motus/*:with_amqpcpp=False` passes end to end. The v1.0.0 tarball is
+   downloaded and its `sha256` verified, the library builds, the package is created, and
+   `test_package` links against the CMakeDeps-generated `motus::motus` and runs.
+2. `conan create` with the default options and `-o boost/*:header_only=True` also passes, and
+   `src/transport/AmqpCppTransport.cpp` compiles against Conan's amqp-cpp and Boost. This is
+   the path that actually exercises the AMQP backend.
+3. `conan graph info` with the default options resolves against `amqp-cpp/4.3.27`,
+   `boost/1.88.0` and `cmake/4.4.2`, so the boost pin and the open-ended cmake range are good.
+4. A consumer that includes `motus/AmqpConnection.hpp` compiles against the package.
+5. With `transitive_headers=True` the consumer's CMakeDeps run declares `Boost::headers` and
+   `Boost::boost`; with the flag removed it declares neither. The flag demonstrably changes
+   what reaches a consumer.
+
+**What is still not verified, and why.**
+
+- **That omitting `transitive_headers` actually breaks a consumer.** A control build with the
+  flag removed still compiled, but that result is worthless here: MSYS2 ships both
+  `/ucrt64/include/boost/` and `/ucrt64/include/amqpcpp.h`, and those sit in this gcc's default
+  include search path, so the headers resolve from the system whatever Conan propagates. The
+  negative case cannot be demonstrated on this machine. Point 5 above is the real evidence that
+  the flag does something; the requirement itself rests on Conan's documented rule.
+- **The default option set with a compiled Boost.** That build fails inside boost's own recipe
+  (`boost/1.88.0`, `build()` line 1179, b2 reporting "failed updating 0 target"). The failure is
+  in the dependency, not in this recipe, and ConanCenter does not build Windows with MinGW
+  anyway, so it says nothing either way about motus.
+- **The Windows `system_libs` and `defines`.** MinGW links `ws2_32`/`mswsock` from the sysroot
+  regardless, so this toolchain cannot distinguish a correct declaration from a missing one.
+  MSVC on ConanCenter CI will.
+
+Conan also emits `WARN: risk: Transitive dependencies with 'headers=False' effect in
+'package_id' is not necessary and suboptimal. Use required_conan_version='>=2.28'`. That was
+left alone deliberately: CCI's own `docs/package_templates/cmake_package` still pins
+`>=2.0.9`, and no recipe in the index uses `>=2.28`.
+
 Once a Conan maintainer approves the CI run on #30838, the authoritative check is CCI's own:
 
 ```bash
 conan create recipes/motus/all --version 1.0.0 --build=missing
 ```
-
-**What is not verified.** The Conan dependency graph itself has not been executed here, because
-Conan is not installed on this machine. `transitive_headers`, the `boost/1.88.0` pin and the
-`cmake` tool_require are argued from the CCI documentation and from reading which public
-headers include what; they will first be executed by ConanCenter CI.
 
 ## 7. Related Docs
 
