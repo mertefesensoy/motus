@@ -70,6 +70,19 @@ load-bearing:
   stays deterministic on every platform ConanCenter builds, with no shutdown ordering to get
   wrong.
 
+A fifth element was added after the first local Conan runs exposed a hole. Everything above
+tests the *library*; nothing in it tested the *packaging decisions* this change was mostly
+about. So the test also includes `motus/AmqpConnection.hpp`, guarded by
+`#ifdef MOTUS_WITH_AMQPCPP` read from the generated `motus/transport/Config.hpp`. That header
+is installed and reaches `<amqpcpp.h>` and `<boost/asio/*.hpp>`, so it compiles only when both
+requirements carry `transitive_headers=True`, and on Windows only when `_WIN32_WINNT` is
+defined before Boost.Asio is reached. Both are properties `package_info()` has to restate by
+hand, and both were previously unexercised.
+
+Reading the guard from the generated header rather than from a recipe-supplied define means
+the test follows whatever options the recipe was built with, without the recipe having to
+plumb anything into it.
+
 ### 3.2 The four recipe fixes
 
 Three are correctness, one is policy.
@@ -218,7 +231,10 @@ Established:
   `/ucrt64/include/boost/` and `/ucrt64/include/amqpcpp.h`, and those sit in this gcc's default
   include search path, so the headers resolve from the system whatever Conan propagates. The
   negative case cannot be demonstrated on this machine. Point 5 above is the real evidence that
-  the flag does something; the requirement itself rests on Conan's documented rule.
+  the flag does something; the requirement itself rests on Conan's documented rule. This is
+  precisely why the `AmqpConnection.hpp` include was moved into the shipped `test_package`
+  (section 3.1). ConanCenter's MSVC and Linux runners carry no system copies of those headers,
+  so their CI can decide the question this machine cannot.
 - **The default option set with a compiled Boost.** That build fails inside boost's own recipe
   (`boost/1.88.0`, `build()` line 1179, b2 reporting "failed updating 0 target"). The failure is
   in the dependency, not in this recipe, and ConanCenter does not build Windows with MinGW
