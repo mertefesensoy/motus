@@ -48,22 +48,58 @@ set(MOTUS_COMMIT_DATE "unknown")
 set(MOTUS_PROVENANCE  "unidentified")
 find_package(Git QUIET)
 if(GIT_FOUND)
+    # Git is trusted ONLY when this directory is itself the worktree root.
+    #
+    # `git rev-parse HEAD` searches upward until it finds a repository, so a motus source
+    # tree unpacked inside somebody else's checkout answers with THAT project's HEAD. A
+    # vcpkg reviewer hit exactly this: building the port produced a Version.hpp naming the
+    # vcpkg pull request's own commit as motus provenance.
+    #
+    # A confident wrong answer is worse here than no answer, because this string reaches the
+    # broker as the AMQP connection identity (see AmqpConnection.hpp). Someone debugging a
+    # live connection would be sent to an unrelated repository. Falling back to
+    # "unidentified" is the honest outcome, and is exactly the case that field exists for.
     execute_process(
-        COMMAND "${GIT_EXECUTABLE}" rev-parse HEAD
+        COMMAND "${GIT_EXECUTABLE}" rev-parse --show-toplevel
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        OUTPUT_VARIABLE MOTUS_GIT_COMMIT
+        OUTPUT_VARIABLE MOTUS_GIT_TOPLEVEL
         OUTPUT_STRIP_TRAILING_WHITESPACE
-        RESULT_VARIABLE MOTUS_GIT_RESULT
+        RESULT_VARIABLE MOTUS_GIT_TOPLEVEL_RESULT
         ERROR_QUIET)
-    if(MOTUS_GIT_RESULT EQUAL 0)
-        set(MOTUS_COMMIT     "${MOTUS_GIT_COMMIT}")
-        set(MOTUS_PROVENANCE "git")
+
+    set(MOTUS_GIT_OWNS_THIS_TREE FALSE)
+    if(MOTUS_GIT_TOPLEVEL_RESULT EQUAL 0)
+        # REALPATH both sides so that symlinks, a mixed drive-letter case or a trailing
+        # separator cannot make one directory compare unequal to itself. A submodule still
+        # matches, since its own .git file makes it a worktree root in its own right.
+        get_filename_component(_motus_source_real   "${CMAKE_CURRENT_SOURCE_DIR}" REALPATH)
+        get_filename_component(_motus_toplevel_real "${MOTUS_GIT_TOPLEVEL}"       REALPATH)
+        if(_motus_source_real STREQUAL _motus_toplevel_real)
+            set(MOTUS_GIT_OWNS_THIS_TREE TRUE)
+        endif()
+    endif()
+
+    if(MOTUS_GIT_OWNS_THIS_TREE)
         execute_process(
-            COMMAND "${GIT_EXECUTABLE}" show -s --format=%cI HEAD
+            COMMAND "${GIT_EXECUTABLE}" rev-parse HEAD
             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-            OUTPUT_VARIABLE MOTUS_COMMIT_DATE
+            OUTPUT_VARIABLE MOTUS_GIT_COMMIT
             OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE MOTUS_GIT_RESULT
             ERROR_QUIET)
+        if(MOTUS_GIT_RESULT EQUAL 0)
+            set(MOTUS_COMMIT     "${MOTUS_GIT_COMMIT}")
+            set(MOTUS_PROVENANCE "git")
+            execute_process(
+                COMMAND "${GIT_EXECUTABLE}" show -s --format=%cI HEAD
+                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                OUTPUT_VARIABLE MOTUS_COMMIT_DATE
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET)
+        endif()
+    else()
+        message(STATUS
+            "motus provenance: not a motus worktree root, reporting build as unidentified")
     endif()
 endif()
 
